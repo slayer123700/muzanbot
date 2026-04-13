@@ -3,8 +3,8 @@ import os
 class Config:
     API_ID = int(os.environ.get("API_ID", 12345)) # Default backup
     API_HASH = os.environ.get("API_HASH", "your_hash")
-    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-    CHAT_ID = os.environ.get("CHAT_ID", "Muzan_mbt")
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyABxVlN-saTZrWsPh6fNzBmEZXCAGQfKfQ")
+    CHAT_ID = os.environ.get("CHAT_ID", "-1003933428695")
     
     STICKERS_BOT1 = ["sticker1.webp", "sticker2.webp"]
     STICKERS_BOT2 = ["sticker6.webp", "sticker7.webp"]
