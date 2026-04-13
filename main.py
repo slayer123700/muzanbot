@@ -2,19 +2,21 @@ import asyncio
 import random
 import re
 import yt_dlp
-import google.generativeai as genai # Gemini import
+import google.generativeai as genai
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
-# ===== CONFIG =====
-api_id = 39111464
-api_hash = "80a521799d5415b97b36d4b9861e2054"
-chat_id = "Muzan_mbt"
-
-# ===== GEMINI SETUP =====
+# ================= CONFIG =================
+# Replace these with your actual values
+API_ID = 39111464
+API_HASH = "80a521799d5415b97b36d4b9861e2054"
+STRING_SESSION = "PASTE_YOUR_STRING_SESSION_HERE"  # Your generated string goes here
+CHAT_ID = "Muzan_mbt"
 GEMINI_API_KEY = "AIzaSyABxVlN-saTZrWsPh6fNzBmEZXCAGQfKfQ"
+
+# ================= GEMINI SETUP =================
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Model configuration
 generation_config = {
     "temperature": 0.8,
     "top_p": 0.95,
@@ -37,8 +39,7 @@ model = genai.GenerativeModel(
 chat_session = model.start_chat(history=[])
 
 # ================= STICKERS =================
-stickers_bot1 = ["sticker1.webp","sticker2.webp","sticker3.webp","sticker4.webp","sticker5.webp"]
-stickers_bot2 = ["sticker6.webp","sticker7.webp","sticker8.webp","sticker9.webp"]
+stickers = ["sticker1.webp", "sticker2.webp", "sticker3.webp", "sticker4.webp", "sticker5.webp"]
 
 # ================= AI REPLY (GEMINI) =================
 async def generate_gemini_reply(user_msg):
@@ -46,7 +47,6 @@ async def generate_gemini_reply(user_msg):
         response = await asyncio.to_thread(chat_session.send_message, user_msg)
         full_text = response.text.strip()
         
-        # Check if AI wants to send a sticker
         send_sticker = False
         if "[SEND_STICKER]" in full_text:
             send_sticker = True
@@ -57,7 +57,7 @@ async def generate_gemini_reply(user_msg):
         print(f"Gemini Error: {e}")
         return "Abhi thoda busy hu, baad mein baat karte hain! 😊", False
 
-# ================= FAST DOWNLOAD =================
+# ================= VIDEO DOWNLOADER =================
 async def download_video(url):
     loop = asyncio.get_event_loop()
     def run():
@@ -72,68 +72,55 @@ async def download_video(url):
             return ydl.prepare_filename(info)
     return await loop.run_in_executor(None, run)
 
-# ================= USER REPLY =================
-async def handle_user_reply(event, client, bot_index):
-    msg = event.raw_text
-    if event.id % 2 != bot_index:
-        return
-
-    # Link Detection
-    url_pattern = r"(https?://\S+)"
-    match = re.search(url_pattern, msg)
-    if match:
-        url = match.group(0)
-        await client.send_message(chat_id, "Downloading video... ⏳", reply_to=event.id)
-        try:
-            file_path = await download_video(url)
-            await client.send_file(chat_id, file_path, caption="Ye lo download ho gaya 🎬", reply_to=event.id)
-            return
-        except:
-            await client.send_message(chat_id, "Download nahi ho paya 😅", reply_to=event.id)
-            return
-
-    # Human delay
-    await asyncio.sleep(random.randint(5, 10))
+# ================= MAIN LOGIC =================
+async def main():
+    # Initializing with StringSession for easy hosting
+    client = TelegramClient(StringSession(STRING_SESSION), API_ID, API_HASH)
     
-    # Get Gemini Reply
-    reply_text, should_send_sticker = await generate_gemini_reply(msg)
+    await client.start()
+    me = await client.get_me()
+    print(f"✅ Bot is running as: {me.first_name}")
 
-    # Send Message
-    try:
-        await client.send_message(chat_id, reply_text, reply_to=event.id)
-        
-        # Send Sticker if Gemini suggested or by 15% random chance
-        if should_send_sticker or random.random() < 0.15:
-            sticker_list = stickers_bot1 if bot_index == 0 else stickers_bot2
-            await client.send_file(chat_id, random.choice(sticker_list), reply_to=event.id)
+    @client.on(events.NewMessage(chats=CHAT_ID, incoming=True))
+    async def handler(event):
+        # Don't reply to yourself
+        if event.sender_id == me.id:
+            return
+
+        msg = event.raw_text
+
+        # 1. Check for links to download
+        url_pattern = r"(https?://\S+)"
+        match = re.search(url_pattern, msg)
+        if match:
+            url = match.group(0)
+            status_msg = await event.reply("Downloading video... ⏳")
+            try:
+                file_path = await download_video(url)
+                await client.send_file(CHAT_ID, file_path, caption="Ye lo download ho gaya 🎬", reply_to=event.id)
+                await status_msg.delete()
+                return
+            except Exception as e:
+                print(f"Download Error: {e}")
+                await status_msg.edit("Download nahi ho paya 😅")
+                return
+
+        # 2. Process with Gemini (Human-like delay)
+        await asyncio.sleep(random.randint(3, 7))
+        reply_text, should_send_sticker = await generate_gemini_reply(msg)
+
+        # 3. Send Reply
+        try:
+            await event.reply(reply_text)
             
-    except Exception as e:
-        print("Reply error:", e)
+            # Send random sticker or if AI suggested
+            if should_send_sticker or random.random() < 0.15:
+                await client.send_file(CHAT_ID, random.choice(stickers), reply_to=event.id)
+        except Exception as e:
+            print(f"Reply Error: {e}")
 
-# ================= MAIN =================
-async def run_bots():
-    client1 = TelegramClient("session1", api_id, api_hash)
-    client2 = TelegramClient("session2", api_id, api_hash)
-
-    await client1.start()
-    await client2.start()
-
-    me1 = await client1.get_me()
-    me2 = await client2.get_me()
-
-    print("✅ Gemini Hinglish Bot + Downloader Ready")
-
-    @client1.on(events.NewMessage(chats=chat_id, incoming=True))
-    async def handler1(event):
-        if event.sender_id != me1.id:
-            await handle_user_reply(event, client1, 0)
-
-    @client2.on(events.NewMessage(chats=chat_id, incoming=True))
-    async def handler2(event):
-        if event.sender_id != me2.id:
-            await handle_user_reply(event, client2, 1)
-
-    await client1.run_until_disconnected()
+    print("✅ Bot is listening for messages...")
+    await client.run_until_disconnected()
 
 if __name__ == "__main__":
-    asyncio.run(run_bots())
+    asyncio.run(main())
