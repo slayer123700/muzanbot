@@ -11,7 +11,7 @@ api_hash = "80a521799d5415b97b36d4b9861e2054"
 chat_id = "Muzan_mbt"
 
 # ===== GEMINI SETUP =====
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
+GEMINI_API_KEY = "AIzaSyABxVlN-saTZrWsPh6fNzBmEZXCAGQfKfQ"
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Model configuration
