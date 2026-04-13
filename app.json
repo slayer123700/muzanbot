@@ -1,0 +1,11 @@
+{
+  "name": "Gemini-Tele-Bot",
+  "description": "AI Chat + Downloader",
+  "env": {
+    "API_ID": { "description": "Telegram API ID" },
+    "API_HASH": { "description": "Telegram API HASH" },
+    "GEMINI_API_KEY": { "description": "Gemini Key from AI Studio" },
+    "CHAT_ID": { "description": "Username of the Group/Chat" }
+  },
+  "formation": { "worker": { "quantity": 1, "size": "eco" } }
+}
