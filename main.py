@@ -1,80 +1,54 @@
+from telethon import TelegramClient
+from telethon.errors import FloodWaitError
 import asyncio
-import random
 
+# ====== CONFIG ======
+api_id = 39111464
+api_hash = '80a521799d5415b97b36d4b9861e2054'
+group_username = -1002333824980
 
-# ==========================
-# CONFIG
-# ==========================
+messages = [
+    "Hello, ",
+    "Kaise ho?",
+    "Test message 1",
+    "Test message 2"
+]
 
-API_ID = 16608386
-API_HASH = "7d28fcd5000788b96071886d658be92b"
+delay_between_messages = 2
+delete_delay = 5
+# ====================
 
-DELAY = 2
-DELETE_AFTER = 4   # delete messages after this many
+client = TelegramClient('session_name', api_id, api_hash)
 
-# ==========================
-# START CLIENT
-# ==========================
+async def auto_message():
+    await client.start()
+    
+    while True:
+        sent_messages = []
 
-app = Client("random", api_id=API_ID, api_hash=API_HASH)
+        for message_text in messages:
+            try:
+                msg = await client.send_message(group_username, message_text)
+                sent_messages.append(msg)
 
-running = False
+            except FloodWaitError as e:
+                print(f"Flood wait: Sleeping for {e.seconds} seconds")
+                await asyncio.sleep(e.seconds)
 
+            except Exception as e:
+                print("Error:", e)
 
-# ==========================
-# RANDOM MESSAGE COMMAND
-# ==========================
+            await asyncio.sleep(delay_between_messages)
 
-@app.on_message(filters.command("s") & filters.me)
-async def start_random(client, message):
-    global running
+        await asyncio.sleep(delete_delay)
 
-    if running:
-        await message.reply("⚠️ Already running")
-        return
+        for msg in sent_messages:
+            try:
+                await msg.delete()
+            except Exception as e:
+                print("Delete Error:", e)
 
-    try:
-        text = message.text.split(" ", 1)[1]
-        msg_list = [x.strip() for x in text.split(",") if x.strip()]
-    except:
-        await message.reply("Usage:\n/s msg1, msg2, msg3")
-        return
+        await asyncio.sleep(delay_between_messages)
 
-    running = True
-    await message.reply("✅ Random sending started")
-
-    sent_messages = []
-
-    while running:
-        msg = random.choice(msg_list)
-
-        m = await message.reply(msg)
-        sent_messages.append(m.id)
-
-        # delete after 10 messages
-        if len(sent_messages) >= DELETE_AFTER:
-            await client.delete_messages(
-                chat_id=message.chat.id,
-                message_ids=sent_messages,
-                revoke=True
-            )
-            sent_messages.clear()
-
-        await asyncio.sleep(DELAY)
-
-
-# ==========================
-# STOP COMMAND
-# ==========================
-
-@app.on_message(filters.command("stop") & filters.me)
-async def stop_random(client, message):
-    global running
-    running = False
-    await message.reply("🛑 Random sending stopped")
-
-
-# ==========================
-# RUN
-
-app.run()
+with client:
+    client.loop.run_until_complete(auto_message())
